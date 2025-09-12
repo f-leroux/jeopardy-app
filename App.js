@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Linking, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Linking, ScrollView, Pressable } from 'react-native';
 import questionsData from './data/full/jeopardy_questions.json';
+
+const palette = {
+  // Cozy, warmer palette (cream + clay)
+  background: '#F6E2D3', // warmer peach-cream
+  card: '#F7EDE1',       // soft parchment
+  primary: '#C97A63',    // muted clay
+  primaryDisabled: '#e3a694', // slightly lighter clay for disabled state
+  text: '#3A2E2A',       // warm dark brown
+  textSecondary: '#5A4A43',
+  border: '#E2D3C6',
+  link: '#B86952',       // slightly darker clay
+  disabled: '#D6C7BB'
+};
 
 function renderTextWithItalics(text) {
   // If explicit <i> tags exist, honor them
@@ -101,7 +114,7 @@ export default function App() {
           <Text
             style={[
               styles.answer,
-              { color: questionObj.wiki_slug ? 'blue' : 'black' }
+              { color: questionObj.wiki_slug ? palette.link : palette.text }
             ]}
           >
             {renderTextWithItalics(questionObj.a)}
@@ -109,28 +122,30 @@ export default function App() {
         </TouchableOpacity>
       </ScrollView>
       <View style={styles.buttonsRow}>
-        <TouchableOpacity
-          style={[styles.button, questionIndex === 0 && styles.disabledButton]}
+        <Pressable
+          style={({pressed}) => [styles.button, questionIndex === 0 && styles.disabledButton, pressed && styles.buttonPressed]}
           onPress={prevQuestion}
           disabled={questionIndex === 0}
         >
           <Text style={styles.buttonText}>Prev</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => setShowAnswer(!showAnswer)}>
-          <Text style={styles.buttonText}>{showAnswer ? 'Hide Answer' : 'Show Answer'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, questionIndex === category.questions.length - 1 && styles.disabledButton]}
+        </Pressable>
+        <Pressable style={({pressed}) => [styles.button, pressed && styles.buttonPressed]} onPress={() => setShowAnswer(!showAnswer)}>
+          <Text style={styles.buttonText} numberOfLines={2}>
+            {showAnswer ? 'Hide\nAnswer' : 'Show\nAnswer'}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={({pressed}) => [styles.button, questionIndex === category.questions.length - 1 && styles.disabledButton, pressed && styles.buttonPressed]}
           onPress={nextQuestion}
           disabled={questionIndex === category.questions.length - 1}
         >
           <Text style={styles.buttonText}>Next</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <View style={styles.newCategory}>
-        <TouchableOpacity style={[styles.button, styles.newCategoryButton]} onPress={newCategory}>
-          <Text style={styles.buttonText}>New Category</Text>
-        </TouchableOpacity>
+        <Pressable style={({pressed}) => [styles.button, styles.newCategoryButton, pressed && styles.buttonPressed]} onPress={newCategory}>
+          <Text style={styles.buttonText} numberOfLines={2}>New{"\n"}Category</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -143,7 +158,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 100,
     paddingBottom: 40,
-    backgroundColor: '#f0f0f5'
+    backgroundColor: palette.background
   },
   categoryContainer: {
     height: 90,
@@ -156,12 +171,15 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontWeight: 'bold',
     textAlign: 'center',
+    color: palette.text,
     marginBottom: 0
   },
   questionScroll: {
     height: 200,
-    backgroundColor: '#fff',
+    backgroundColor: palette.card,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: palette.border,
     padding: 20,
     marginTop: 10,
     marginBottom: 10,
@@ -170,14 +188,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden'
   },
   questionContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  question: { fontSize: 20, textAlign: 'center' },
-  separator: { borderBottomWidth: 1, borderBottomColor: '#ccc', marginVertical: 10 },
-  answer: { fontSize: 20, textAlign: 'center' },
+  question: { fontSize: 20, textAlign: 'center', color: palette.textSecondary },
+  separator: { borderBottomWidth: 1, borderBottomColor: palette.border, marginVertical: 10 },
+  answer: { fontSize: 20, textAlign: 'center', color: palette.text },
   italic: { fontStyle: 'italic' },
   answerScroll: {
     height: 100,
-    backgroundColor: '#fff',
+    backgroundColor: palette.card,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: palette.border,
     padding: 20,
     marginTop: 0,
     marginBottom: 12,
@@ -191,19 +211,20 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     marginHorizontal: 2,
-    backgroundColor: '#2196F3',
-    borderRadius: 5,
+    backgroundColor: palette.primary,
+    borderRadius: 8,
     height: 60,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  disabledButton: { backgroundColor: '#a0a0a0' },
-  buttonText: { color: '#fff', textAlign: 'center', fontSize: 18 },
+  disabledButton: { backgroundColor: palette.primaryDisabled },
+  buttonText: { color: palette.card, textAlign: 'center', fontSize: 18 },
   newCategory: { marginTop: 5 },
   newCategoryButton: {
     height: 70,
     flex: 0,
     alignItems: 'center',
     justifyContent: 'center'
-  }
+  },
+  buttonPressed: { backgroundColor: '#c97a63' + 'dd' }
 });
