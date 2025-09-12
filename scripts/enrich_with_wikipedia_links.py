@@ -1,33 +1,58 @@
 import json
-import wikipedia
 import os
 from tqdm import tqdm
 import concurrent.futures
+import requests # We will use requests directly
 
 # You can adjust this number. A higher number means more parallel requests.
 # 15-20 is a good range. Be mindful not to overload the API.
 MAX_WORKERS = 15
+WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
 
 def get_wiki_slug(answer_text):
     """
-    Finds the Wikipedia page slug for a given text.
+    Finds the Wikipedia page slug for a given text by querying the
+    MediaWiki Action API directly. This is more reliable than the
+    wikipedia library.
+
     Returns the slug on success, or None on failure.
     """
     if not answer_text or not isinstance(answer_text, str):
         return None
-        
-    cleaned_text = answer_text
-    if cleaned_text.lower().startswith(('a ', 'an ', 'the ')):
-        cleaned_text = cleaned_text.split(' ', 1)[1]
 
+    # These are the parameters for our API request
+    params = {
+        "action": "query",      # We are performing a query
+        "format": "json",       # We want the response in JSON format
+        "list": "search",       # We are doing a search
+        "srsearch": answer_text,# This is the search term itself
+        "srlimit": 1,           # We only want the top result
+        "srprop": ""            # We don't need any extra properties, just the title
+    }
+    
     try:
-        page = wikipedia.page(cleaned_text, auto_suggest=True, redirect=True)
-        return page.title.replace(' ', '_')
-    except wikipedia.exceptions.PageError:
+        # It's good practice to set a user-agent
+        headers = {'User-Agent': 'JeopardyScraper/1.0 (https://example.com; myemail@example.com)'}
+        response = requests.get(WIKIPEDIA_API_URL, params=params, headers=headers, timeout=10)
+        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+        data = response.json()
+
+        # The search results are in a list. Check if it's not empty.
+        search_results = data.get("query", {}).get("search", [])
+        if search_results:
+            # The first result is the best match. Get its title.
+            best_match_title = search_results[0]["title"]
+            # Replace spaces with underscores to create the "slug"
+            return best_match_title.replace(' ', '_')
+        else:
+            # No results found for this term
+            return None
+
+    except requests.exceptions.RequestException:
+        # Handle network errors, timeouts, etc.
         return None
-    except wikipedia.exceptions.DisambiguationError:
-        return None
-    except Exception:
+    except (KeyError, IndexError):
+        # Handle unexpected JSON structure or empty results
         return None
 
 def enrich_item(item_dict):
@@ -53,23 +78,15 @@ def enrich_jeopardy_data(input_filepath, output_filepath):
             json.dump([], f)
         return
 
-    # Flatten the data into a single list of items to process
     items_to_process = []
     if 'questions' in data[0]:
-        # Structure: [{"category": ..., "questions": [{"q": ..., "a": ...}]}]
         for category in data:
             items_to_process.extend(category['questions'])
     else:
-        # Structure: [{"category": ..., "q": ..., "a": ...}]
         items_to_process = data
 
-    # Use ThreadPoolExecutor to process items in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        # We pass the dictionary object itself to the worker.
-        # The worker will modify it in place, adding the 'wiki_slug'.
         futures = [executor.submit(enrich_item, item) for item in items_to_process]
-        
-        # Use tqdm for a progress bar as futures complete
         kwargs = {
             'total': len(futures),
             'unit': 'slug',
@@ -77,12 +94,10 @@ def enrich_jeopardy_data(input_filepath, output_filepath):
         }
         for future in tqdm(concurrent.futures.as_completed(futures), **kwargs):
             try:
-                future.result() # We call result() to raise any exceptions that occurred
+                future.result()
             except Exception as e:
                 tqdm.write(f"An error occurred in a thread: {e}")
 
-    # The original 'data' object is now fully enriched because the items
-    # within it were modified in place.
     with open(output_filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
@@ -117,14 +132,12 @@ def process_all_raw_files():
             print(f"Skipping '{filename}': Enriched version already exists.")
             continue
         
-        # No print statement here, the progress bar from tqdm will show the status
         enrich_jeopardy_data(input_filepath, output_filepath)
         print(f"Finished processing '{filename}'. Saved to {ENRICHED_DATA_DIR}/")
 
     print("\nAll files processed.")
 
-
 if __name__ == '__main__':
-    # Make sure you have installed the required libraries:
-    # pip install wikipedia tqdm
+    # You will need to have requests and tqdm installed:
+    # pip install requests tqdm
     process_all_raw_files()
