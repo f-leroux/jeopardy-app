@@ -1,3 +1,6 @@
 data/raw
 data/enriched
-
+node_modules/
+.expo/
+.expo-shared/
+web-build/
