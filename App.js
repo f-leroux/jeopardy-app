@@ -29,13 +29,17 @@ export default function App() {
   const questionObj = category.questions[questionIndex];
 
   const nextQuestion = () => {
-    setQuestionIndex((prev) => (prev + 1) % category.questions.length);
-    setShowAnswer(false);
+    if (questionIndex < category.questions.length - 1) {
+      setQuestionIndex((prev) => prev + 1);
+      setShowAnswer(false);
+    }
   };
 
   const prevQuestion = () => {
-    setQuestionIndex((prev) => (prev - 1 + category.questions.length) % category.questions.length);
-    setShowAnswer(false);
+    if (questionIndex > 0) {
+      setQuestionIndex((prev) => prev - 1);
+      setShowAnswer(false);
+    }
   };
 
   const newCategory = () => {
@@ -72,13 +76,21 @@ export default function App() {
         )}
       </ScrollView>
       <View style={styles.buttonsRow}>
-        <TouchableOpacity style={styles.button} onPress={prevQuestion}>
+        <TouchableOpacity
+          style={[styles.button, questionIndex === 0 && styles.disabledButton]}
+          onPress={prevQuestion}
+          disabled={questionIndex === 0}
+        >
           <Text style={styles.buttonText}>Prev</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={() => setShowAnswer(!showAnswer)}>
           <Text style={styles.buttonText}>{showAnswer ? 'Hide Answer' : 'Show Answer'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={nextQuestion}>
+        <TouchableOpacity
+          style={[styles.button, questionIndex === category.questions.length - 1 && styles.disabledButton]}
+          onPress={nextQuestion}
+          disabled={questionIndex === category.questions.length - 1}
+        >
           <Text style={styles.buttonText}>Next</Text>
         </TouchableOpacity>
       </View>
@@ -92,17 +104,49 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'flex-start', padding: 20, paddingTop: 60, backgroundColor: '#fff' },
-  category: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  questionScroll: { flex: 1 },
-  questionContainer: { flexGrow: 1, justifyContent: 'center' },
-  question: { fontSize: 20, marginBottom: 20, textAlign: 'center' },
+  container: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    padding: 20,
+    paddingTop: 80,
+    paddingBottom: 40,
+    backgroundColor: '#f0f0f5'
+  },
+  category: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30
+  },
+  questionScroll: {
+    flex: 0.85,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    marginBottom: 10
+  },
+  questionContainer: { flexGrow: 1, justifyContent: 'flex-start', alignItems: 'center' },
+  question: { fontSize: 20, marginBottom: 20, textAlign: 'center', marginTop: 40 },
   separator: { borderBottomWidth: 1, borderBottomColor: '#ccc', marginVertical: 10 },
   answer: { fontSize: 20, marginBottom: 20, textAlign: 'center' },
   italic: { fontStyle: 'italic' },
-  buttonsRow: { flexDirection: 'row', marginBottom: 20 },
-  button: { flex: 1, marginHorizontal: 2, paddingVertical: 15, backgroundColor: '#2196F3', borderRadius: 5 },
+  buttonsRow: { flexDirection: 'row', marginBottom: 10 },
+  button: {
+    flex: 1,
+    marginHorizontal: 2,
+    backgroundColor: '#2196F3',
+    borderRadius: 5,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  disabledButton: { backgroundColor: '#a0a0a0' },
   buttonText: { color: '#fff', textAlign: 'center', fontSize: 18 },
-  newCategory: { marginTop: 10 },
-  newCategoryButton: { paddingVertical: 20 }
+  newCategory: { marginTop: 5 },
+  newCategoryButton: {
+    height: 70,
+    flex: 0,
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
 });
