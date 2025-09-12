@@ -50,7 +50,7 @@ def scrape_jeopardy_game(game_id):
             if not question_element:
                 continue
             
-            question_text = question_element.get_text(strip=True)
+            question_text = question_element.get_text(strip=False)
             question_id = question_element.get('id')
             
             try:
@@ -69,7 +69,7 @@ def scrape_jeopardy_game(game_id):
             if answer_element:
                 correct_response_em = answer_element.find('em', class_='correct_response')
                 if correct_response_em:
-                    answer_text = correct_response_em.get_text(strip=True)
+                    answer_text = correct_response_em.get_text(strip=False)
                     temp_category_data[category_name].append({"q": question_text, "a": answer_text})
 
         # Add the categories to the final list, respecting the exclusion list
@@ -86,11 +86,11 @@ def scrape_jeopardy_game(game_id):
         fj_answer_element = final_jeopardy_div.find('td', id='clue_FJ_r')
 
         if fj_category_element and fj_question_element and fj_answer_element:
-            final_category = fj_category_element.get_text(strip=True) # ADD this line
-            final_question = fj_question_element.get_text(strip=True)
+            final_category = fj_category_element.get_text(strip=False) # ADD this line
+            final_question = fj_question_element.get_text(strip=False)
             correct_response_em = fj_answer_element.find('em', class_='correct_response')
             if correct_response_em:
-                final_answer = correct_response_em.get_text(strip=True)
+                final_answer = correct_response_em.get_text(strip=False)
                 # MODIFY the line below to include the category
                 final_jeopardy_data = {"category": final_category, "q": final_question, "a": final_answer}
 
@@ -151,9 +151,7 @@ if __name__ == '__main__':
     MAX_WORKERS = 10
 
     # Define the output file names
-    REGULAR_JSON_FILE = 'jeopardy_questions.json'
-    FINAL_JEOPARDY_JSON_FILE = 'final_jeopardy_questions.json'
+    REGULAR_JSON_FILE = f'../data/raw/jeopardy_questions_{START_GAME_ID}-{END_GAME_ID}.json'
+    FINAL_JEOPARDY_JSON_FILE = f'../data/raw/final_jeopardy_questions_{START_GAME_ID}-{END_GAME_ID}.json'
 
-    # Before running, you might need to install the progress bar library:
-    # pip install tqdm
     scrape_jarchive_range(START_GAME_ID, END_GAME_ID, REGULAR_JSON_FILE, FINAL_JEOPARDY_JSON_FILE, MAX_WORKERS)
