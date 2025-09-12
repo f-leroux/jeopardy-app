@@ -74,7 +74,7 @@ def scrape_jeopardy_game(game_id):
 
         # Add the categories to the final list, respecting the exclusion list
         for category_name, questions in temp_category_data.items():
-            if questions and category_name not in categories_to_exclude:
+            if len(questions) == 5 and category_name not in categories_to_exclude:
                 all_categories_data.append({"category": category_name, "questions": questions})
 
     # --- Final Jeopardy! (Corrected) ---
