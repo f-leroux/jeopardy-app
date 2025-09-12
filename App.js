@@ -70,6 +70,9 @@ export default function App() {
   const category = questionsData[categoryIndex];
   const questionObj = category.questions[questionIndex];
 
+  // Strip quotes only if the entire title is quoted; otherwise leave inner quotes
+  const categoryText = category.category.replace(/^"(.*)"$/, '$1');
+
   const nextQuestion = () => {
     if (questionIndex < category.questions.length - 1) {
       setQuestionIndex((prev) => prev + 1);
@@ -99,7 +102,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <View style={styles.categoryContainer}>
-        <Text style={styles.category} numberOfLines={3} ellipsizeMode="tail">{category.category.replace(/^\"|\"$/g, '')}</Text>
+        <Text style={styles.category} numberOfLines={3} ellipsizeMode="tail">{renderTextWithItalics(categoryText)}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.questionContainer} style={styles.questionScroll} contentInsetAdjustmentBehavior="never">
         <Text style={styles.question}>{renderTextWithItalics(questionObj.q)}</Text>
@@ -127,7 +130,7 @@ export default function App() {
           onPress={prevQuestion}
           disabled={questionIndex === 0}
         >
-          <Text style={styles.buttonText}>Prev</Text>
+          <Text style={[styles.buttonText, styles.arrowText]}>←</Text>
         </Pressable>
         <Pressable style={({pressed}) => [styles.button, pressed && styles.buttonPressed]} onPress={() => setShowAnswer(!showAnswer)}>
           <Text style={styles.buttonText} numberOfLines={2}>
@@ -139,7 +142,7 @@ export default function App() {
           onPress={nextQuestion}
           disabled={questionIndex === category.questions.length - 1}
         >
-          <Text style={styles.buttonText}>Next</Text>
+          <Text style={[styles.buttonText, styles.arrowText]}>→</Text>
         </Pressable>
       </View>
       <View style={styles.newCategory}>
@@ -219,6 +222,7 @@ const styles = StyleSheet.create({
   },
   disabledButton: { backgroundColor: palette.primaryDisabled },
   buttonText: { color: palette.card, textAlign: 'center', fontSize: 18 },
+  arrowText: { fontSize: 54, lineHeight: 60, fontWeight: '800', marginTop: -18 },
   newCategory: { marginTop: 5 },
   newCategoryButton: {
     height: 70,
