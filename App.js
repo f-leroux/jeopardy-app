@@ -3,20 +3,49 @@ import { StyleSheet, Text, View, TouchableOpacity, Linking, ScrollView } from 'r
 import questionsData from './data/full/jeopardy_questions.json';
 
 function renderTextWithItalics(text) {
-  const parts = text.split(/(<i>|<\/i>)/g);
+  // If explicit <i> tags exist, honor them
+  if (text.includes('<i>') || text.includes('</i>')) {
+    const parts = text.split(/(<i>|<\/i>)/g);
+    const result = [];
+    let italic = false;
+    parts.forEach((part, index) => {
+      if (part === '<i>') {
+        italic = true;
+      } else if (part === '</i>') {
+        italic = false;
+      } else if (part !== '') {
+        result.push(
+          <Text key={`seg-${index}`} style={italic ? styles.italic : undefined}>{part}</Text>
+        );
+      }
+    });
+    return result;
+  }
+
+  // Otherwise, treat text inside double quotes as italic (dataset convention)
   const result = [];
   let italic = false;
-  parts.forEach((part, index) => {
-    if (part === '<i>') {
-      italic = true;
-    } else if (part === '</i>') {
-      italic = false;
-    } else if (part !== '') {
-      result.push(
-        <Text key={index} style={italic ? styles.italic : undefined}>{part}</Text>
-      );
+  let buffer = '';
+  let segIndex = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (buffer !== '') {
+        result.push(
+          <Text key={`seg-${segIndex++}`} style={italic ? styles.italic : undefined}>{buffer}</Text>
+        );
+        buffer = '';
+      }
+      italic = !italic; // toggle italic when encountering a quote
+      continue;
     }
-  });
+    buffer += ch;
+  }
+  if (buffer !== '') {
+    result.push(
+      <Text key={`seg-${segIndex++}`} style={italic ? styles.italic : undefined}>{buffer}</Text>
+    );
+  }
   return result;
 }
 
@@ -56,24 +85,28 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.category}>{category.category.replace(/^"|"$/g, '')}</Text>
-      <ScrollView contentContainerStyle={styles.questionContainer} style={styles.questionScroll}>
+      <View style={styles.categoryContainer}>
+        <Text style={styles.category} numberOfLines={3} ellipsizeMode="tail">{category.category.replace(/^\"|\"$/g, '')}</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.questionContainer} style={styles.questionScroll} contentInsetAdjustmentBehavior="never">
         <Text style={styles.question}>{renderTextWithItalics(questionObj.q)}</Text>
-        {showAnswer && (
-          <>
-            <View style={styles.separator} />
-            <TouchableOpacity onPress={handleAnswerPress} disabled={!questionObj.wiki_slug}>
-              <Text
-                style={[
-                  styles.answer,
-                  { color: questionObj.wiki_slug ? 'blue' : 'black' }
-                ]}
-              >
-                {renderTextWithItalics(questionObj.a)}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
+      </ScrollView>
+      <ScrollView
+        contentContainerStyle={styles.answerContainer}
+        style={[styles.answerScroll, !showAnswer && styles.hidden]}
+        contentInsetAdjustmentBehavior="never"
+        pointerEvents={showAnswer ? 'auto' : 'none'}
+      >
+        <TouchableOpacity onPress={handleAnswerPress} disabled={!questionObj.wiki_slug}>
+          <Text
+            style={[
+              styles.answer,
+              { color: questionObj.wiki_slug ? 'blue' : 'black' }
+            ]}
+          >
+            {renderTextWithItalics(questionObj.a)}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
       <View style={styles.buttonsRow}>
         <TouchableOpacity
@@ -108,28 +141,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-start',
     padding: 20,
-    paddingTop: 80,
+    paddingTop: 100,
     paddingBottom: 40,
     backgroundColor: '#f0f0f5'
   },
+  categoryContainer: {
+    height: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10
+  },
   category: {
     fontSize: 24,
+    lineHeight: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 30
+    marginBottom: 0
   },
   questionScroll: {
-    flex: 0.85,
+    height: 220,
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
-    marginBottom: 10
+    marginTop: 10,
+    marginBottom: 10,
+    flexGrow: 0,
+    flexShrink: 0,
+    overflow: 'hidden'
   },
-  questionContainer: { flexGrow: 1, justifyContent: 'flex-start', alignItems: 'center' },
-  question: { fontSize: 20, marginBottom: 20, textAlign: 'center', marginTop: 40 },
+  questionContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
+  question: { fontSize: 20, textAlign: 'center' },
   separator: { borderBottomWidth: 1, borderBottomColor: '#ccc', marginVertical: 10 },
-  answer: { fontSize: 20, marginBottom: 20, textAlign: 'center' },
+  answer: { fontSize: 20, textAlign: 'center' },
   italic: { fontStyle: 'italic' },
+  answerScroll: {
+    height: 100,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    marginTop: 10,
+    marginBottom: 10,
+    flexGrow: 0,
+    flexShrink: 0,
+    overflow: 'hidden'
+  },
+  answerContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
+  hidden: { opacity: 0 },
   buttonsRow: { flexDirection: 'row', marginBottom: 10 },
   button: {
     flex: 1,
