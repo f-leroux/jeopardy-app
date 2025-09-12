@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     marginBottom: 0
   },
   questionScroll: {
-    height: 220,
+    height: 200,
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
@@ -179,15 +179,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 0,
+    marginBottom: 12,
     flexGrow: 0,
     flexShrink: 0,
     overflow: 'hidden'
   },
   answerContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   hidden: { opacity: 0 },
-  buttonsRow: { flexDirection: 'row', marginBottom: 10 },
+  buttonsRow: { flexDirection: 'row', marginBottom: 2 },
   button: {
     flex: 1,
     marginHorizontal: 2,
