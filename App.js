@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Linking, ScrollView, Pressable } from 'react-native';
 import questionsData from './data/full/jeopardy_questions.json';
+import { StatusBar } from 'expo-status-bar';
+import * as NavigationBar from 'expo-navigation-bar';
 
 const palette = {
   // Cozy, warmer palette (cream + clay)
@@ -67,6 +69,11 @@ export default function App() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
 
+  useEffect(() => {
+    NavigationBar.setBackgroundColorAsync(palette.background);
+    NavigationBar.setButtonStyleAsync('dark');
+  }, []);
+
   const category = questionsData[categoryIndex];
   const questionObj = category.questions[questionIndex];
 
@@ -101,6 +108,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" backgroundColor={palette.background} />
       <View style={styles.categoryContainer}>
         <Text style={styles.category} numberOfLines={3} ellipsizeMode="tail">{renderTextWithItalics(categoryText)}</Text>
       </View>

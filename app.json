@@ -11,13 +11,23 @@
       "package": "com.yourcompany.myapp",
       "versionCode": 1
     },
+    "androidStatusBar": {
+      "backgroundColor": "#F6E2D3",
+      "barStyle": "dark-content",
+      "translucent": false
+    },
+    "androidNavigationBar": {
+      "backgroundColor": "#F6E2D3",
+      "barStyle": "dark-content"
+    },
     "extra": {
       "eas": {
         "projectId": "b2354a1f-0a81-43ad-ae28-d586c478bae0"
       }
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      "expo-navigation-bar"
     ]
   }
 }
