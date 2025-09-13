@@ -27,6 +27,17 @@ def scrape_jeopardy_game(game_id):
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
+    # --- Date Check: Only process games from 2005 or later ---
+    game_title_h1 = soup.find('div', id='game_title').find('h1')
+    title_text = game_title_h1.get_text(strip=True)
+    # The year is the last "word" in the title string, e.g., "Show #... 1984"
+    year_str = title_text.split(' ')[-1]
+    year = int(year_str)
+    if year < 2005:
+        # Using tqdm.write is better than print() when using a progress bar
+        tqdm.write(f"Skipping game {game_id} (Year: {year}) - Before 2005.")
+        return None, None # This is the signal to the main loop to skip this game
+
     # --- Regular and Double Jeopardy! Rounds ---
     all_categories_data = []
     round_identifiers = ['jeopardy_round', 'double_jeopardy_round']
@@ -143,8 +154,8 @@ def scrape_jarchive_range(start_id, end_id, regular_output_file, final_output_fi
 
 if __name__ == '__main__':
     # Define the range of game IDs you want to scrape
-    START_GAME_ID = 1
-    END_GAME_ID = 100
+    START_GAME_ID = 1001
+    END_GAME_ID = 9267
 
     # Number of parallel download threads. 
     # Increase for faster scraping, but be respectful of the server. 10-15 is a safe range.

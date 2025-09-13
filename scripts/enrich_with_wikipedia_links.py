@@ -1,143 +1,150 @@
 import json
 import os
+import argparse
 from tqdm import tqdm
 import concurrent.futures
-import requests # We will use requests directly
+import requests
 
 # You can adjust this number. A higher number means more parallel requests.
-# 15-20 is a good range. Be mindful not to overload the API.
 MAX_WORKERS = 15
 WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
 
 def get_wiki_slug(answer_text):
     """
     Finds the Wikipedia page slug for a given text by querying the
-    MediaWiki Action API directly. This is more reliable than the
-    wikipedia library.
-
-    Returns the slug on success, or None on failure.
+    MediaWiki Action API directly.
     """
     if not answer_text or not isinstance(answer_text, str):
         return None
 
-    # These are the parameters for our API request
     params = {
-        "action": "query",      # We are performing a query
-        "format": "json",       # We want the response in JSON format
-        "list": "search",       # We are doing a search
-        "srsearch": answer_text,# This is the search term itself
-        "srlimit": 1,           # We only want the top result
-        "srprop": ""            # We don't need any extra properties, just the title
+        "action": "query", "format": "json", "list": "search",
+        "srsearch": answer_text, "srlimit": 1, "srprop": ""
     }
     
     try:
-        # It's good practice to set a user-agent
-        headers = {'User-Agent': 'JeopardyScraper/1.0 (https://example.com; myemail@example.com)'}
+        headers = {'User-Agent': 'JeopardyEnricher/1.1'}
         response = requests.get(WIKIPEDIA_API_URL, params=params, headers=headers, timeout=10)
-        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+        response.raise_for_status()
         data = response.json()
-
-        # The search results are in a list. Check if it's not empty.
         search_results = data.get("query", {}).get("search", [])
         if search_results:
-            # The first result is the best match. Get its title.
-            best_match_title = search_results[0]["title"]
-            # Replace spaces with underscores to create the "slug"
-            return best_match_title.replace(' ', '_')
-        else:
-            # No results found for this term
-            return None
-
-    except requests.exceptions.RequestException:
-        # Handle network errors, timeouts, etc.
+            return search_results[0]["title"].replace(' ', '_')
         return None
-    except (KeyError, IndexError):
-        # Handle unexpected JSON structure or empty results
+    except (requests.exceptions.RequestException, KeyError, IndexError):
         return None
 
 def enrich_item(item_dict):
     """
-    Worker function for a single thread. Takes a dictionary containing an answer,
-    gets the wiki slug, and adds it back to the dictionary.
+    Worker function: takes a dictionary, gets the wiki slug for its answer,
+    and adds it back to the dictionary.
     """
     answer = item_dict.get('a')
     slug = get_wiki_slug(answer)
     item_dict['wiki_slug'] = slug
 
-def enrich_jeopardy_data(input_filepath, output_filepath):
+def enrich_jeopardy_data(input_filepath, output_filepath, retry_nulls=False):
     """
     Reads a Jeopardy JSON file, adds Wikipedia slugs concurrently,
-    and saves to a new file.
+    and saves the result.
     """
     with open(input_filepath, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     if not data:
-        print(f"Warning: Input file {input_filepath} is empty. Creating an empty output file.")
-        with open(output_filepath, 'w', encoding='utf-8') as f:
-            json.dump([], f)
+        tqdm.write(f"Warning: Input file {input_filepath} is empty. Skipping.")
+        if input_filepath != output_filepath: # Only create new file in normal mode
+            with open(output_filepath, 'w', encoding='utf-8') as f: json.dump([], f)
         return
 
-    items_to_process = []
-    if 'questions' in data[0]:
+    # Flatten the data into a single list of items that need processing
+    all_items = []
+    is_regular_format = 'questions' in data[0]
+    if is_regular_format:
         for category in data:
-            items_to_process.extend(category['questions'])
+            all_items.extend(category['questions'])
     else:
-        items_to_process = data
+        all_items = data
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = [executor.submit(enrich_item, item) for item in items_to_process]
-        kwargs = {
-            'total': len(futures),
-            'unit': 'slug',
-            'desc': f"Enriching {os.path.basename(input_filepath)}"
-        }
-        for future in tqdm(concurrent.futures.as_completed(futures), **kwargs):
-            try:
-                future.result()
-            except Exception as e:
-                tqdm.write(f"An error occurred in a thread: {e}")
+    # THIS IS THE KEY LOGIC: Filter the list based on the mode
+    if retry_nulls:
+        # In retry mode, only process items where the slug is missing
+        items_to_process = [item for item in all_items if item.get('wiki_slug') is None]
+    else:
+        # In normal mode, process all items
+        items_to_process = all_items
+    
+    if not items_to_process:
+        tqdm.write(f"No items to process for {os.path.basename(input_filepath)}. Skipping API calls.")
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = [executor.submit(enrich_item, item) for item in items_to_process]
+            kwargs = {
+                'total': len(futures), 'unit': 'slug',
+                'desc': f"Processing {os.path.basename(input_filepath)}"
+            }
+            for future in tqdm(concurrent.futures.as_completed(futures), **kwargs):
+                future.result() # Calling result() helps propagate exceptions
 
+    # The original 'data' object is now fully updated in memory.
     with open(output_filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def process_all_raw_files():
+def main(retry_nulls):
     """
-    Finds all JSON files in the raw data directory, checks if they've been
-    enriched, and processes them if not.
+    Main function to orchestrate the enrichment process based on the selected mode.
     """
     RAW_DATA_DIR = os.path.join('..', 'data', 'raw')
     ENRICHED_DATA_DIR = os.path.join('..', 'data', 'enriched')
-
-    print(f"Ensuring output directory exists at: {ENRICHED_DATA_DIR}")
     os.makedirs(ENRICHED_DATA_DIR, exist_ok=True)
 
-    try:
-        raw_files = [f for f in os.listdir(RAW_DATA_DIR) if f.endswith('.json')]
-    except FileNotFoundError:
-        print(f"Error: Raw data directory not found at '{RAW_DATA_DIR}'. Please create it and add your JSON files.")
+    if retry_nulls:
+        print("--- Running in --retry-nulls mode ---")
+        print(f"Scanning for existing files in {ENRICHED_DATA_DIR} to update...")
+        source_dir = ENRICHED_DATA_DIR
+        files_to_process = [f for f in os.listdir(source_dir) if f.endswith('.json')]
+    else:
+        print("--- Running in normal mode ---")
+        print(f"Scanning for new files in {RAW_DATA_DIR} to process...")
+        source_dir = RAW_DATA_DIR
+        try:
+            files_to_process = [f for f in os.listdir(source_dir) if f.endswith('.json')]
+        except FileNotFoundError:
+            print(f"Error: Raw data directory not found at '{RAW_DATA_DIR}'. Please create it.")
+            return
+
+    if not files_to_process:
+        print("No JSON files found to process.")
         return
 
-    if not raw_files:
-        print(f"No JSON files found in {RAW_DATA_DIR}.")
-        return
-
-    print(f"Found {len(raw_files)} JSON file(s) to potentially process.")
-
-    for filename in raw_files:
-        input_filepath = os.path.join(RAW_DATA_DIR, filename)
+    print(f"Found {len(files_to_process)} JSON file(s) to process.")
+    for filename in files_to_process:
+        input_filepath = os.path.join(source_dir, filename)
         output_filepath = os.path.join(ENRICHED_DATA_DIR, filename)
 
-        if os.path.exists(output_filepath):
+        if not retry_nulls and os.path.exists(output_filepath):
             print(f"Skipping '{filename}': Enriched version already exists.")
             continue
         
-        enrich_jeopardy_data(input_filepath, output_filepath)
-        print(f"Finished processing '{filename}'. Saved to {ENRICHED_DATA_DIR}/")
+        enrich_jeopardy_data(input_filepath, output_filepath, retry_nulls)
+        if retry_nulls:
+            print(f"Finished retrying '{filename}'. File has been updated.")
+        else:
+            print(f"Finished processing '{filename}'. Saved to {ENRICHED_DATA_DIR}/")
 
     print("\nAll files processed.")
 
 if __name__ == '__main__':
-    # You will need to have requests and tqdm installed:
-    # pip install requests tqdm
-    process_all_raw_files()
+    # Set up the command-line argument parser
+    parser = argparse.ArgumentParser(
+        description="Enrich Jeopardy data with Wikipedia slugs. Can process new files or retry failed lookups in existing files."
+    )
+    parser.add_argument(
+        '--retry-nulls',
+        action='store_true',
+        help="If set, the script will scan data/enriched/ and retry API lookups for entries where 'wiki_slug' is null."
+    )
+    args = parser.parse_args()
+
+    # Call the main function with the value of the flag
+    main(retry_nulls=args.retry_nulls)
