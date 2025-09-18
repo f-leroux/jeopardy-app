@@ -17,6 +17,12 @@ const palette = {
   disabled: '#D6C7BB'
 };
 
+function normalizePunctuationSpacing(text) {
+  return text
+    .replace(/,([^\s])/g, ', $1')
+    .replace(/:([^\s])/g, ': $1');
+}
+
 function renderTextWithItalics(text) {
   // If explicit <i> tags exist, honor them
   if (text.includes('<i>') || text.includes('</i>')) {
@@ -79,6 +85,7 @@ export default function App() {
 
   // Strip quotes only if the entire title is quoted; otherwise leave inner quotes
   const categoryText = category.category.replace(/^"(.*)"$/, '$1');
+  const questionText = normalizePunctuationSpacing(questionObj.q);
 
   const nextQuestion = () => {
     if (questionIndex < category.questions.length - 1) {
@@ -113,7 +120,7 @@ export default function App() {
         <Text style={styles.category} numberOfLines={3} ellipsizeMode="tail">{renderTextWithItalics(categoryText)}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.questionContainer} style={styles.questionScroll} contentInsetAdjustmentBehavior="never">
-        <Text style={styles.question}>{renderTextWithItalics(questionObj.q)}</Text>
+        <Text style={styles.question}>{renderTextWithItalics(questionText)}</Text>
       </ScrollView>
       <ScrollView
         contentContainerStyle={styles.answerContainer}
